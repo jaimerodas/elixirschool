@@ -13,10 +13,10 @@ Achieving this required an application that used GitHub to verify a user's eligi
 In this post we're going to explore how Admissions works and how we achieved our goals using Elixir and Phoenix. To start let's look at the expected flow and work from there:
 
 ```mermaid
-graph LR;
+graph LR
     A["Sign in with GitHub"] --> B{"Contributor?"}
-    B-- Yes -->D["Send invite via Slack API"];
-    B-- No -->E["Ineligibility message"];
+    B-- Yes -->D["Send invite via Slack API"]
+    B-- No -->E["Ineligibility message"]
     D-->F["Congratulations message"]
 ```
 
