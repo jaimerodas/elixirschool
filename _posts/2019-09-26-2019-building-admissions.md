@@ -276,7 +276,7 @@ end
 
 The contributor list is a collection of maps containing _all_ of the information pertaining to a GitHub user but we're most interested in the`"login"` key, the user's nickname.
 
-Now we can finally answer the question: Are they are contibutor? 
+Now we can finally answer the question: Are they contributors? 
 
 Last but not least, we need to handle the answer to that question inviting them to Slack or encouraging them to contribute and try again.
 
