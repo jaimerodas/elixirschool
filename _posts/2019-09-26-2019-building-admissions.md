@@ -27,7 +27,7 @@ In addition to telling us how the application should function, this diagram brea
 2. With the user's access token use the GitHub API to see if the user has contributed to an organization's project. To avoid having to spend time writing our own GitHub API client we're going to make use of [Tentacat](https://github.com/edgurgel/tentacat).
 3. Using the result of the API search, process the user's result
    1. In the event a user **is** a contributor, have them confirm the email address they want to use for Slack, use the Slack API to send an invite, and finally congratulate them.
-   2. If they **have not** contributed we need to notify them of their inelibility
+   2. If they **have not** contributed we need to notify them of their ineligibility
 
 > Note: For our application we've renamed `PageController` to `EligibilityController` to fit with our school admissions theme.
 
@@ -81,7 +81,7 @@ defmodule AdmissionsWeb.AuthController do
 end
 ```
 
-With the plug now in place we defined our the function to handle our requests which we've elected to name `callback/2`. This function  needs to retreive the user details Ueberauth has so convienently placed into the `Plug.Conn` assigns for us. The fields we're concerned with are the user's email, GitHub nickname, and access token:
+With the plug now in place we defined our the function to handle our requests which we've elected to name `callback/2`. This function  needs to retreive the user details Ueberauth has so convienently placed into the `Plug.Conn` assigns for us. The fields we're concerned with are the user's email and GitHub nickname:
 
 ```elixir
 defmodule AdmissionsWeb.AuthController do
@@ -90,7 +90,7 @@ defmodule AdmissionsWeb.AuthController do
   plug Ueberauth
 
   def callback(%{assigns: %{ueberauth_auth: ueberauth_auth}} = conn, _params) do
-    %{credentials: %{token: token}, info: %{email: email, nickname: nickname}} = ueberauth_auth
+    %{info: %{email: email, nickname: nickname}} = ueberauth_auth
   end
 end
 ```
@@ -106,7 +106,7 @@ defmodule AdmissionsWeb.AuthController do
   plug Ueberauth
 
   def callback(%{assigns: %{ueberauth_auth: ueberauth_auth}} = conn, _params) do
-    %{credentials: %{token: token}, info: %{email: email, nickname: nickname}} = ueberauth_auth
+    %{info: %{email: email, nickname: nickname}} = ueberauth_auth
     
     conn
     |> put_session(:github, %{email: email, nickname: nickname, token: token})
@@ -185,7 +185,7 @@ A user can now sign-in with a valid GitHub account. We need to handle the next s
 
 ### Verifying contributor status
 
-
+At this stage in the request our user has successfully authenticated with GitHub and now we need to determine if they've contributed to any of our repositories. To achieve this we need the GitHub API and the `token` that we in our OAuth response from GitHub. For this portion of the application the high level of what we're doing looks like: 
 
 ```mermaid
 graph LR
@@ -195,6 +195,90 @@ graph LR
     C-- No -->E["Return false"]
 ```
 
+In the interest of not reinventing the wheel we opted for the [Tentacat](https://github.com/edgurgel/tentacat) library. At this point in our journey our `mix.exs` dependencies looked like this:
 
+```elixir
+  defp deps do
+    [
+      {:gettext, "~> 0.11"},
+      {:jason, "~> 1.0"},
+      {:phoenix, "~> 1.4.0"},
+      {:phoenix_html, "~> 2.11"},
+      {:plug_cowboy, "~> 2.0"},
+      {:tentacat, "~> 1.5"},
+      {:ueberauth_github, "~> 0.7.0"},
+
+      {:phoenix_live_reload, "~> 1.2", only: :dev}
+    ]
+  end
+```
+
+With our new dependency in place we can fetch (`mix deps.get`) and get on our way. Keeping our controller's simple and focused on presentation is a goal we always shoot for so we decided to implement the eligibility code in a separate module outside of the web portion of our application.
+
+We've called this new module `Registrar` in keeping with our college theme, it can be found in the `lib/admissions/registrar.ex` file.
+
+>  ### reg·is·trar
+>
+> 1. An official in a college or university who is responsible for keeping student records.
+
+Given the flow above we deteremined the best way to achieve this would be to check a list of repositories in our organization (with support for multiple organizations) for contributors who matched our user's GitHub nickname. To this end we knew we'd need to store the organization's name and its repositories. For this we opted to use a map where an organization name's is the key and the value is a list of repositories. To avoid any type casting we elected to store everything as strings, the end result of which was added to our `config.exs`:
+
+```elixir
+config :admissions, repositories: %{
+  "elixirschool" => ["elixirschool", "admissions", "extracurricular", "homework"]
+}
+```
+
+> To support some future plans we opted to support multiple organizations. This also allows other organizations and companies to leverage the Admissions.
+
+When implementing the actual checks we found breaking things up into a few functions worked best to keep the code clean and readable. We ended up with 4 functions in our new `lib/admissions/registrar.ex` file: 
+
+1. Our only public function `eligibile?/1` takes a nickname.
+2. A private function `org_contributor?/3` which takes the GitHub API client we'll create with the token, the user's nickname, and lastly a key-value pair from our `config :admissions, repositories` map.
+3. A function to check each repository's contributors for our user: `contributor?/4`. We'll need the GitHub API client, nickname, organization, and a repository.
+4. Lastly, a function to retrieve our configuration from above: `organizations/0`. We prefer to use functions in place of module attributes when loading configuration values.
+
+To get it out of the way tackled the easiest function, `organization/0`, where we do no more than get our configuration:
+
+```elixir
+def organizations, do: Application.get_env(:admissions, :repositories)
+```
+
+With our configuration available we can iterate over the organizations and look for contributor status. For that we'll need to create a Tentacat GitHub API client. Let's take a peek at what we needed up with in our `eligible?/2` function:
+
+```elixir
+def eligible?(nickname) do
+  client = Client.new()
+  Enum.any?(organizations(), &org_contributor?(client, nickname, &1))
+end
+```
+
+Here we create a `Tentacat.Client` and iterate over configured organizations using `Enum.any?/2`. We don't much care for complex anonymous functions so we elected to create `org_contributor/2` . This function is simple enough: Take single organization from our configuration and iterate through the repositories looking for a match:
+
+```elixir
+defp org_contributor?(client, nickname, {org, repos}) do
+  Enum.any?(repos, &contributor?(client, nickname, org, &1))
+end
+```
+
+Last but not least is our `contributor?/4` function that does the real work.  We have to retrieve the list of contributors for a repository and verify whether or not our nickname is present in the list. Thanks to Tentacat this is fairly easy using the `Tentacat.Repositories.Contributors`  module and `list/3` function which returns a tuple including a list of our contributors, the other values we can ignore:
+
+```elixir
+defp contributor?(client, nickname, org, repo) do
+  case Contributers.list(client, org, repo) do
+    {_status, contributors, _response} ->
+      Enum.any?(contributors, &(Map.get(&1, "login") == nickname))
+    _ ->
+      false
+  end
+end
+```
+
+The contributor list is a collection of maps containing _all_ of the information pertaining to a GitHub user but we're most interested in the`"login"` key, the user's nickname.
+
+Now we can finally answer the question: Are they are contibutor? 
+
+Last but not least, we need to handle the answer to that question inviting them to Slack or encouraging them to contribute and try again.
 
 ### Processing the user's request
+
