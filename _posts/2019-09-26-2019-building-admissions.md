@@ -33,7 +33,7 @@ In addition to telling us how the application should function, this diagram brea
 
 ### Login with GitHub
 
-Starting from a new Phoenix project (`mix phx.new admisssions`)  we looked at how to support GitHub login. For that we need a new dependency: `ueberauth_github`:
+Starting from a new Phoenix project (`mix phx.new admissions`)  we looked at how to support GitHub login. For that we need a new dependency: `ueberauth_github`:
 
 ```elixir
   defp deps do
@@ -59,7 +59,7 @@ With our application empowered with our new dependency what's left to do? Plenty
 
 2. Include our new controller and route in our `router.ex` file.
 
-3. Put the required the configuration for Ueberauth in our `config/config.exs` file.
+3. Put the required configuration for Ueberauth in our `config/config.exs` file.
 
 4. Add a button to the UI for login. While we won't spend time in this article building the UI, we will touch on the required pieces.
 
@@ -81,7 +81,7 @@ defmodule AdmissionsWeb.AuthController do
 end
 ```
 
-With the plug now in place we defined our the function to handle our requests which we've elected to name `callback/2`. This function  needs to retreive the user details Ueberauth has so convienently placed into the `Plug.Conn` assigns for us. The fields we're concerned with are the user's email and GitHub nickname:
+With the plug now in place we defined our the function to handle our requests which we've elected to name `callback/2`. This function  needs to retrieve the user details Ueberauth has so conveniently placed into the `Plug.Conn` assigns for us. The fields we're concerned with are the user's email and GitHub nickname:
 
 ```elixir
 defmodule AdmissionsWeb.AuthController do
@@ -119,7 +119,7 @@ With that in place we're done with our controller and can move on to the next su
 
 #### Updating Phoenix's router
 
-Updating the router for Ueberauth is a fairly easy and straight forward change. At the bottom of our `router.ex` we added the following scope block:
+Updating the router for Ueberauth is a fairly easy and straightforward change. At the bottom of our `router.ex` we added the following scope block:
 
 ```elixir
 scope "/auth", AdmissionsWeb do
@@ -221,7 +221,7 @@ We've called this new module `Registrar` in keeping with our college theme, it c
 >
 > 1. An official in a college or university who is responsible for keeping student records.
 
-Given the flow above we deteremined the best way to achieve this would be to check a list of repositories in our organization (with support for multiple organizations) for contributors who matched our user's GitHub nickname. To this end we knew we'd need to store the organization's name and its repositories. For this we opted to use a map where an organization name's is the key and the value is a list of repositories. To avoid any type casting we elected to store everything as strings, the end result of which was added to our `config.exs`:
+Given the flow above we determined the best way to achieve this would be to check a list of repositories in our organization (with support for multiple organizations) for contributors who matched our user's GitHub nickname. To this end we knew we'd need to store the organization's name and its repositories. For this we opted to use a map where an organization name's is the key and the value is a list of repositories. To avoid any type casting we elected to store everything as strings, the end result of which was added to our `config.exs`:
 
 ```elixir
 config :admissions, repositories: %{
