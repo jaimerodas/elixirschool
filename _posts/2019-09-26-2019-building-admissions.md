@@ -21,7 +21,7 @@ graph LR
     E-->F["Welcome message"]
 ```
 
-In addition to telling us how the application should function, this diagram breaks the flow up into convient development task. Working from this diagram let's explore the individual tasks we'll need in order to fulfill our high level requirements:
+In addition to telling us how the application should function, this diagram breaks the flow up into convenient development task. Working from this diagram let's explore the individual tasks we'll need in order to fulfill our high level requirements:
 
 1. Allow a user to sign in using GitHub and capture their access token. We can leverage [Ueberauth](https://github.com/ueberauth/ueberauth) and its [GitHub strategy](https://github.com/ueberauth/ueberauth_github) to do the heavy lifting for us.
 2. With the user's access token use the GitHub API to see if the user has contributed to an organization's project. To avoid having to spend time writing our own GitHub API client we're going to make use of [Tentacat](https://github.com/edgurgel/tentacat).
