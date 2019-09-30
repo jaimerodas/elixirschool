@@ -75,7 +75,7 @@ Completing our first subtask requires we create a new controller for Ueberauth t
 
 ```elixir
 defmodule AdmissionsWeb.AuthController do
-	use AdmissionsWeb, :controller
+  use AdmissionsWeb, :controller
 
   plug Ueberauth
 end
@@ -85,7 +85,7 @@ With the plug now in place we defined our the function to handle our requests wh
 
 ```elixir
 defmodule AdmissionsWeb.AuthController do
-	use AdmissionsWeb, :controller
+  use AdmissionsWeb, :controller
 
   plug Ueberauth
 
@@ -265,7 +265,7 @@ Last but not least is our `contributor?/4` function that does the real work.  We
 
 ```elixir
 defp contributor?(client, nickname, org, repo) do
-  case Contributers.list(client, org, repo) do
+  case Contributors.list(client, org, repo) do
     {_status, contributors, _response} ->
       Enum.any?(contributors, &(Map.get(&1, "login") == nickname))
     _ ->
